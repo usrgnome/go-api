@@ -293,7 +293,7 @@ func withJWTLogout(s Storage) http.HandlerFunc {
 
 		token, err := validateRefreshJWT(refresh_token)
 
-		fmt.Println("trying to logout 2")
+		fmt.Println("trying to logoutww 2")
 		if err != nil || !token.Valid {
 			permissionDenied(w)
 			return
