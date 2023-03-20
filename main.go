@@ -26,8 +26,8 @@ func seedAccounts(s Storage) {
 }
 
 func main() {
-
 	seed := flag.Bool("seed", false, "seed the db")
+	port := flag.String("port", "3000", "--port=3000")
 	flag.Parse()
 
 	store, err := NewPostgresStore()
@@ -41,12 +41,11 @@ func main() {
 	}
 
 	if *seed {
-		// seed stuff
 		fmt.Println("Seeding the db")
 		seedAccounts(store)
 	}
 
-	server := NewAPIServer(":3001", store)
+	formattedPort := ":" + *port
+	server := NewAPIServer(formattedPort, store)
 	server.Run()
-
 }

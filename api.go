@@ -53,13 +53,10 @@ func (s *APIServer) Run() error {
 	router.HandleFunc("/auth/account", makeHTTPHandleFunc(s.handleAccount))
 	router.HandleFunc("/auth/accounts", makeHTTPHandleFunc(s.handleAccounts)).Methods("GET")
 	router.HandleFunc("/auth/profile", withJWTAuth(s.handleGetProfile, s.store)).Methods("GET")
-	//router.HandleFunc("/auth/account/{id}", makeHTTPHandleFunc(s.handleDeleteAccount, s.store)).Methods("DELETE")
-	//router.HandleFunc("/auth/transfer", makeHTTPHandleFunc(s.handleTransfer, s.store)).Methods("POST")
 	router.HandleFunc("/auth/refresh", withJWTRefresh(s.store)).Methods("GET")
 	router.HandleFunc("/auth/logout", withJWTLogout(s.store)).Methods("GET")
 
 	log.Println("json web server running on port: ", s.listenAddr)
-
 	return http.ListenAndServe(s.listenAddr, router)
 }
 

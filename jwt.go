@@ -13,7 +13,7 @@ func createAuthJWT(ID int) (string, error) {
 		Id: ID,
 	}
 
-	claims.ExpiresAt = jwt.NewNumericDate(time.Now().Add(24 * time.Hour))
+	claims.ExpiresAt = jwt.NewNumericDate(time.Now().Add(5 * time.Second))
 	claims.IssuedAt = jwt.NewNumericDate(time.Now())
 
 	secret := os.Getenv("JWT_AUTH_SECRET")
