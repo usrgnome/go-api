@@ -1,20 +1,39 @@
 package main
 
 import (
-	"math/rand"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
+
+	jwt "github.com/golang-jwt/jwt/v5"
 )
 
+type RefreshJWTClaims struct {
+	Id int `json:"id"`
+	jwt.RegisteredClaims
+}
+
+type AuthJWTClaims struct {
+	Id int `json:"id"`
+	jwt.RegisteredClaims
+}
+
+type RefreshResponse struct {
+	Token string `json:"token"`
+}
+
+type ProfileResponse struct {
+	Token string `json:"token"`
+}
+
 type LoginRequest struct {
-	Number   int64  `json:"number"`
+	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
 type LoginResponse struct {
-	Number int64  `json:"number"`
-	Token  string `json:"token"`
+	Id    int64  `json:"id"`
+	Token string `json:"token"`
 }
 
 type TransferRequest struct {
@@ -23,17 +42,15 @@ type TransferRequest struct {
 }
 
 type CreateAccountRequest struct {
-	FirstName string `json:"firstName"`
-	LastName  string `json:"lastName"`
-	Password  string `json:"password"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 
 type Account struct {
 	ID                int       `json:"id"`
-	FirstName         string    `json:"firstName"`
-	LastName          string    `json:"lastName"`
-	Number            int64     `json:"number"`
-	Balance           int64     `json:"balance"`
+	Username          string    `json:"username"`
+	Email             string    `json:"email"`
 	EncryptedPassword string    `json:"-"`
 	CreatedAt         time.Time `json:"createdAt"`
 }
@@ -42,7 +59,7 @@ func (a *Account) ValidatePassword(pw string) bool {
 	return bcrypt.CompareHashAndPassword([]byte(a.EncryptedPassword), []byte(pw)) == nil
 }
 
-func NewAccount(firstName, lastName, password string) (*Account, error) {
+func NewAccount(username, email, password string) (*Account, error) {
 	encpw, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 
 	if err != nil {
@@ -50,9 +67,8 @@ func NewAccount(firstName, lastName, password string) (*Account, error) {
 	}
 
 	return &Account{
-		FirstName:         firstName,
-		LastName:          lastName,
-		Number:            int64(rand.Intn(10000)),
+		Username:          username,
+		Email:             email,
 		CreatedAt:         time.Now().UTC(),
 		EncryptedPassword: string(encpw),
 	}, nil

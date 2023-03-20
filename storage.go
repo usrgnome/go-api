@@ -13,7 +13,7 @@ type Storage interface {
 	UpdateAccount(*Account) error
 	GetAccountByID(int) (*Account, error)
 	GetAccounts() ([]*Account, error)
-	GetAccountByNumber(int) (*Account, error)
+	GetAccountByEmail(string) (*Account, error)
 }
 
 type PostgresStore struct {
@@ -39,24 +39,20 @@ func NewPostgresStore() (*PostgresStore, error) {
 func (s *PostgresStore) CreateAccount(acc *Account) error {
 	query := `
 	insert into account
-	(first_name, last_name, number, encrypted_password, balance, created_at)
-	values ($1, $2, $3, $4, $5, $6)
+	(username, email, encrypted_password, created_at)
+	values ($1, $2, $3, $4)
 	`
 	_, err := s.db.Query(
 		query,
-		acc.FirstName,
-		acc.LastName,
-		acc.Number,
+		acc.Username,
+		acc.Email,
 		acc.EncryptedPassword,
-		acc.Balance,
 		acc.CreatedAt,
 	)
 
 	if err != nil {
 		return err
 	}
-
-	//fmt.Printf("%+v\n", resp)
 
 	return nil
 }
@@ -68,8 +64,8 @@ func (s *PostgresStore) DeleteAccount(id int) error {
 	return err
 }
 
-func (s *PostgresStore) GetAccountByNumber(number int) (*Account, error) {
-	rows, err := s.db.Query("select * from account WHERE number = $1", number)
+func (s *PostgresStore) GetAccountByEmail(email string) (*Account, error) {
+	rows, err := s.db.Query("select * from account WHERE email = $1", email)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +74,7 @@ func (s *PostgresStore) GetAccountByNumber(number int) (*Account, error) {
 		return scanIntoAccount(rows)
 	}
 
-	return nil, fmt.Errorf("account %d not found", number)
+	return nil, fmt.Errorf("account %s not found", email)
 }
 
 func (s *PostgresStore) GetAccountByID(id int) (*Account, error) {
@@ -120,11 +116,9 @@ func (s *PostgresStore) Init() error {
 func (s *PostgresStore) createAccountTable() error {
 	query := `create table if not exists account (
 		id serial primary key,
-		first_name varchar(50),
-		last_name varchar(50),
-		number serial,
+		username varchar(50),
+		email varchar(50),
 		encrypted_password varchar(100),
-		balance serial,
 		created_at timestamp
 	)`
 
@@ -136,11 +130,9 @@ func scanIntoAccount(rows *sql.Rows) (*Account, error) {
 	account := new(Account)
 	err := rows.Scan(
 		&account.ID,
-		&account.FirstName,
-		&account.LastName,
-		&account.Number,
+		&account.Username,
+		&account.Email,
 		&account.EncryptedPassword,
-		&account.Balance,
 		&account.CreatedAt,
 	)
 
