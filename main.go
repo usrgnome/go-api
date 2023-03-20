@@ -46,7 +46,7 @@ func main() {
 		seedAccounts(store)
 	}
 
-	server := NewAPIServer(":3000", store)
+	server := NewAPIServer(":3001", store)
 	server.Run()
 	//fmt.Println("yeah Auddy! %s", err.Error())
 }
