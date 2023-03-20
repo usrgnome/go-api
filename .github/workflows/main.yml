@@ -1,0 +1,55 @@
+name: Deploy to Vultr
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.19.7
+      
+    - name: Set up Go environment
+      run: |
+          mkdir -p $HOME/go
+          echo 'export GOPATH=$HOME/go' >> $HOME/.bashrc
+          source $HOME/.bashrc
+        
+    - name: Install project GO.MOD dependencies
+      run: go mod download
+
+    - name: Build Golang app
+      run: go build -o app
+
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y sshpass
+
+    - name: Copy executable to Vultr server
+      uses: appleboy/scp-action@master
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        password: ${{ secrets.PASSWORD }}
+        source: "./app"
+        target: "/home/user/app"
+
+    - name: Run Golang app on Vultr server
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        password: ${{ secrets.PASSWORD }}
+        script: |
+          cd /home/user/app
+          ./app
