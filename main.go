@@ -48,5 +48,5 @@ func main() {
 
 	server := NewAPIServer(":3001", store)
 	server.Run()
-	//fmt.Println("yeah Auddy! %s", err.Error())
+
 }
