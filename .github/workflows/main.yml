@@ -51,5 +51,7 @@ jobs:
         username: ${{ secrets.USERNAME }}
         password: ${{ secrets.PASSWORD }}
         script: |
-          cd /home/user/app
-          ./app
+          sudo systemctl stop api
+          sudo systemctl daemon-reload
+          sudo systemctl enable api
+          sudo systemctl start api

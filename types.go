@@ -52,6 +52,8 @@ type Account struct {
 	Username          string    `json:"username"`
 	Email             string    `json:"email"`
 	EncryptedPassword string    `json:"-"`
+	Exp               int       `json:"exp"`
+	Currency          int       `json:"currency"`
 	CreatedAt         time.Time `json:"createdAt"`
 }
 

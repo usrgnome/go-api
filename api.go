@@ -51,7 +51,7 @@ func (s *APIServer) Run() error {
 	router.HandleFunc("/auth/login", makeHTTPHandleFunc(s.handleLogin)).Methods("POST")
 	router.HandleFunc("/auth/signup", makeHTTPHandleFunc(s.handleCreateAccount)).Methods("POST")
 	router.HandleFunc("/auth/account", makeHTTPHandleFunc(s.handleAccount))
-	//router.HandleFunc("/auth/accounts", makeHTTPHandleFunc(s.handleAccount, s.store))
+	router.HandleFunc("/auth/accounts", makeHTTPHandleFunc(s.handleAccounts)).Methods("GET")
 	router.HandleFunc("/auth/profile", withJWTAuth(s.handleGetProfile, s.store)).Methods("GET")
 	//router.HandleFunc("/auth/account/{id}", makeHTTPHandleFunc(s.handleDeleteAccount, s.store)).Methods("DELETE")
 	//router.HandleFunc("/auth/transfer", makeHTTPHandleFunc(s.handleTransfer, s.store)).Methods("POST")
@@ -61,6 +61,18 @@ func (s *APIServer) Run() error {
 	log.Println("json web server running on port: ", s.listenAddr)
 
 	return http.ListenAndServe(s.listenAddr, router)
+}
+
+func (s *APIServer) handleAccounts(w http.ResponseWriter, r *http.Request) error {
+
+	accounts, err := s.store.GetAccounts()
+
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("handleGetProfile", "got account!")
+	return WriteJson(w, http.StatusOK, accounts)
 }
 
 func (s *APIServer) handleGetProfile(w http.ResponseWriter, r *http.Request, accID int) error {
