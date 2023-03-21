@@ -45,6 +45,8 @@ func main() {
 		seedAccounts(store)
 	}
 
+	PrintSecrets()
+
 	formattedPort := ":" + *port
 	server := NewAPIServer(formattedPort, store)
 	server.Run()

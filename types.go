@@ -8,12 +8,26 @@ import (
 	jwt "github.com/golang-jwt/jwt/v5"
 )
 
+type TokenResponse struct {
+	Token string `json:"token"`
+}
+
 type RefreshJWTClaims struct {
 	Id int `json:"id"`
 	jwt.RegisteredClaims
 }
 
 type AuthJWTClaims struct {
+	Id int `json:"id"`
+	jwt.RegisteredClaims
+}
+
+type ServerJWTClaims struct {
+	Id int `json:"id"`
+	jwt.RegisteredClaims
+}
+
+type ClientJWTClaims struct {
 	Id int `json:"id"`
 	jwt.RegisteredClaims
 }
@@ -34,6 +48,10 @@ type LoginRequest struct {
 type LoginResponse struct {
 	Id    int64  `json:"id"`
 	Token string `json:"token"`
+}
+
+type UpdateRequest struct {
+	Score int `json:"score"`
 }
 
 type TransferRequest struct {

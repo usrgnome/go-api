@@ -10,7 +10,7 @@ import (
 type Storage interface {
 	CreateAccount(*Account) error
 	DeleteAccount(int) error
-	UpdateAccount(*Account) error
+	UpdateAccount(int, int) error
 	GetAccountByID(int) (*Account, error)
 	GetAccounts() ([]*Account, error)
 	GetAccountByEmail(string) (*Account, error)
@@ -37,6 +37,11 @@ func NewPostgresStore() (*PostgresStore, error) {
 }
 
 func (s *PostgresStore) CreateAccount(acc *Account) error {
+
+	if existingAccount, _ := s.GetAccountByEmail(acc.Email); existingAccount != nil {
+		return fmt.Errorf("Email already exists!")
+	}
+
 	query := `
 	insert into account
 	(username, email, encrypted_password, created_at, exp, currency)
@@ -58,8 +63,18 @@ func (s *PostgresStore) CreateAccount(acc *Account) error {
 
 	return nil
 }
-func (s *PostgresStore) UpdateAccount(*Account) error {
-	return nil
+func (s *PostgresStore) UpdateAccount(accID, score int) error {
+
+	fmt.Println("updating account in storage!")
+
+	query := "UPDATE account SET exp = exp + $1 WHERE id = $2"
+	_, err := s.db.Query(query, score, accID)
+
+	if err != nil {
+		fmt.Println("error updating table!", err.Error())
+	}
+
+	return err
 }
 func (s *PostgresStore) DeleteAccount(id int) error {
 	_, err := s.db.Query("delete from account where id = $1", id)

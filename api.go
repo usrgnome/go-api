@@ -50,14 +50,109 @@ func (s *APIServer) Run() error {
 
 	router.HandleFunc("/auth/login", makeHTTPHandleFunc(s.handleLogin)).Methods("POST")
 	router.HandleFunc("/auth/signup", makeHTTPHandleFunc(s.handleCreateAccount)).Methods("POST")
-	router.HandleFunc("/auth/account", makeHTTPHandleFunc(s.handleAccount))
 	router.HandleFunc("/auth/accounts", makeHTTPHandleFunc(s.handleAccounts)).Methods("GET")
 	router.HandleFunc("/auth/profile", withJWTAuth(s.handleGetProfile, s.store)).Methods("GET")
+	router.HandleFunc("/auth/token", withJWTAuth(s.handleGetToken, s.store)).Methods("GET")
 	router.HandleFunc("/auth/refresh", withJWTRefresh(s.store)).Methods("GET")
 	router.HandleFunc("/auth/logout", withJWTLogout(s.store)).Methods("GET")
+	router.HandleFunc("/getServerToken", s.handleGetServerToken()).Methods("GET")
+	router.HandleFunc("/updateAccount", s.handleUpdateAccount()).Methods("POST")
 
 	log.Println("json web server running on port: ", s.listenAddr)
 	return http.ListenAndServe(s.listenAddr, router)
+}
+
+func (s *APIServer) handleUpdateAccount() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		fmt.Println("update account called!")
+
+		var req UpdateRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			permissionDenied(w)
+			return
+		}
+
+		fmt.Println("update account got passed body scanner")
+
+		tokenString := r.Header.Get("authorization")
+
+		fmt.Println("got server token: ", tokenString)
+
+		token, err := validateServerJWT(tokenString)
+
+		if err != nil {
+			fmt.Println("server token error", err.Error())
+			permissionDenied(w)
+			return
+		}
+
+		if !token.Valid {
+			fmt.Println("server token not valid")
+			permissionDenied(w)
+			return
+		}
+
+		if claims, ok := token.Claims.(*ServerJWTClaims); ok && token.Valid {
+			id := claims.Id
+
+			err := s.store.UpdateAccount(id, req.Score)
+
+			if err != nil {
+				WriteJson(w, http.StatusForbidden, ApiError{Error: err.Error()})
+				return
+			}
+
+			fmt.Println("got updated acc: ", id, " with add score: ", req.Score)
+			w.WriteHeader(http.StatusOK)
+			return
+		} else {
+			fmt.Println(err)
+			permissionDenied(w)
+			return
+		}
+	}
+}
+
+func (s *APIServer) handleGetServerToken() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		tokenString := r.Header.Get("authorization")
+
+		fmt.Println("got auth token: ", tokenString)
+
+		token, err := validateClientJWT(tokenString)
+
+		if err != nil {
+			fmt.Println("client token error", err.Error())
+			permissionDenied(w)
+			return
+		}
+
+		if !token.Valid {
+			fmt.Println("client token not valid")
+			permissionDenied(w)
+			return
+		}
+
+		if claims, ok := token.Claims.(*ClientJWTClaims); ok && token.Valid {
+			id := claims.Id
+			serverToken, err := createServerJWT(id)
+
+			if err != nil {
+				WriteJson(w, http.StatusForbidden, ApiError{Error: err.Error()})
+				return
+			}
+
+			fmt.Println("got server token: ", tokenString)
+			WriteJson(w, http.StatusOK, TokenResponse{Token: serverToken})
+
+			return
+		} else {
+			fmt.Println(err)
+			permissionDenied(w)
+			return
+		}
+	}
 }
 
 func (s *APIServer) handleAccounts(w http.ResponseWriter, r *http.Request) error {
@@ -72,6 +167,24 @@ func (s *APIServer) handleAccounts(w http.ResponseWriter, r *http.Request) error
 	return WriteJson(w, http.StatusOK, accounts)
 }
 
+func (s *APIServer) handleGetToken(w http.ResponseWriter, r *http.Request, accID int) error {
+
+	fmt.Printf("inside token handler", accID)
+	fmt.Println("handleGetProfile", "got account!")
+
+	clientToken, err := createClientJWT(accID)
+
+	if err != nil {
+		return err
+	}
+
+	resp := &TokenResponse{
+		Token: clientToken,
+	}
+
+	return WriteJson(w, http.StatusOK, resp)
+}
+
 func (s *APIServer) handleGetProfile(w http.ResponseWriter, r *http.Request, accID int) error {
 
 	fmt.Printf("inside profiler handler", accID)
@@ -84,12 +197,6 @@ func (s *APIServer) handleGetProfile(w http.ResponseWriter, r *http.Request, acc
 
 	fmt.Println("handleGetProfile", "got account!")
 	return WriteJson(w, http.StatusOK, account)
-}
-
-func (s *APIServer) handleRefresh(w http.ResponseWriter, r *http.Request) error {
-	var resp = new(RefreshResponse)
-	resp.Token = "Hello world"
-	return WriteJson(w, http.StatusOK, resp)
 }
 
 func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
@@ -126,18 +233,6 @@ func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 	cookie := http.Cookie{Name: "refresh_token", Value: refreshToken, Expires: expiration}
 	http.SetCookie(w, &cookie)
 	return WriteJson(w, http.StatusOK, resp)
-}
-
-// 7861
-func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error {
-	if r.Method == "GET" {
-		return s.handleGetAccount(w, r)
-	} else if r.Method == "POST" {
-		return s.handleCreateAccount(w, r)
-	} else if r.Method == "DELETE" {
-		s.handleDeleteAccount(w, r)
-	}
-	return fmt.Errorf("method not allowed %s", r.Method)
 }
 
 func (s *APIServer) handleGetAccount(w http.ResponseWriter, r *http.Request) error {
@@ -259,7 +354,9 @@ func withJWTAuth(handlerFunc protectedApiFunc, s Storage) http.HandlerFunc {
 		if claims, ok := token.Claims.(*AuthJWTClaims); ok && token.Valid {
 			id := claims.Id
 			fmt.Println("got auth token: ", tokenString)
-			handlerFunc(w, r, id)
+			if err := handlerFunc(w, r, id); err != nil {
+				WriteJson(w, http.StatusForbidden, ApiError{Error: err.Error()})
+			}
 			return
 		} else {
 			fmt.Println(err)
