@@ -8,12 +8,13 @@ import (
 
 func seedAccount(store Storage, fname, lname, pw string) *Account {
 	acc, err := NewAccount(fname, lname, pw)
+
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	if err := store.CreateAccount(acc); err != nil {
-		log.Fatal(err)
+		return nil
 	}
 
 	fmt.Println("new account => ", acc.ID)
