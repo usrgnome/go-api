@@ -75,15 +75,15 @@ func NewAPIServer(listenAddr string, store Storage) *APIServer {
 func (s *APIServer) Run() error {
 	router := mux.NewRouter()
 
-	router.HandleFunc("/auth/login", makeHTTPHandleFunc(s.handleLogin)).Methods("POST")
-	router.HandleFunc("/auth/signup", makeHTTPHandleFunc(s.handleCreateAccount)).Methods("POST")
-	router.HandleFunc("/auth/accounts", makeHTTPHandleFunc(s.handleAccounts)).Methods("GET")
-	router.HandleFunc("/auth/profile", withJWTAuth(s.handleGetProfile, s.store)).Methods("GET")
-	router.HandleFunc("/auth/token", withJWTAuth(s.handleGetToken, s.store)).Methods("GET")
-	router.HandleFunc("/auth/refresh", withJWTRefresh(s.store)).Methods("GET")
-	router.HandleFunc("/auth/logout", withJWTLogout(s.store)).Methods("GET")
+	router.HandleFunc("/api/login", makeHTTPHandleFunc(s.handleLogin)).Methods("POST")
+	router.HandleFunc("/api/signup", makeHTTPHandleFunc(s.handleCreateAccount)).Methods("POST")
+	router.HandleFunc("/api/accounts", makeHTTPHandleFunc(s.handleAccounts)).Methods("GET")
+	router.HandleFunc("/api/profile", withJWTAuth(s.handleGetProfile, s.store)).Methods("GET")
+	router.HandleFunc("/api/token", withJWTAuth(s.handleGetToken, s.store)).Methods("GET")
+	router.HandleFunc("/api/refresh", withJWTRefresh(s.store)).Methods("GET")
+	router.HandleFunc("/api/logout", withJWTLogout(s.store)).Methods("GET")
+	router.HandleFunc("/api/servers", s.handleGetServers).Methods("GET")
 	router.HandleFunc("/getServerToken", s.handleGetServerToken()).Methods("GET")
-	router.HandleFunc("/servers", s.handleGetServers).Methods("GET")
 	router.HandleFunc("/updateServer", s.handleAddServer).Methods("POST")
 	router.HandleFunc("/updateAccount", s.handleUpdateAccount()).Methods("POST")
 
