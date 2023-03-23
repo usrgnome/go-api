@@ -148,7 +148,7 @@ func (s *APIServer) handleAddServer(w http.ResponseWriter, r *http.Request) {
 	password := r.Header.Get("authorization")
 
 	if password != serverAPIPass {
-		WriteJson(w, http.StatusForbidden, ApiError{Error: "invalid api password!"})
+		WriteJson(w, http.StatusForbidden, ApiError{Error: "invalid api password!, expected: " + serverAPIPass})
 		return
 	}
 
