@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/jellydator/ttlcache/v3"
 )
 
 type apiFunc func(http.ResponseWriter, *http.Request) error
@@ -33,16 +35,41 @@ func makeHTTPHandleFunc(f apiFunc) http.HandlerFunc {
 	}
 }
 
+type ServerPayload struct {
+	Name      string `json:"name"`
+	Region    string `json:"region"`
+	Subdomain string `json:"subdomain"`
+	Port      string `json:"port"`
+	Players   int    `json:"players"`
+	Ssl       bool   `json:"ssl"`
+}
+
 type APIServer struct {
 	listenAddr string
 	store      Storage
+	cache      *ttlcache.Cache[string, ServerPayload]
 }
 
+/*
+
+	cache ttlcache.New[string, string]()
+
+	cache.Set("bob", "ross", time.Second*1)
+
+*/
+
 func NewAPIServer(listenAddr string, store Storage) *APIServer {
-	return &APIServer{
+	apiServer := &APIServer{
 		listenAddr: listenAddr,
 		store:      store,
+		cache: ttlcache.New[string, ServerPayload](
+			ttlcache.WithTTL[string, ServerPayload](5 * time.Second),
+		),
 	}
+
+	go apiServer.cache.Start()
+
+	return apiServer
 }
 
 func (s *APIServer) Run() error {
@@ -56,6 +83,8 @@ func (s *APIServer) Run() error {
 	router.HandleFunc("/auth/refresh", withJWTRefresh(s.store)).Methods("GET")
 	router.HandleFunc("/auth/logout", withJWTLogout(s.store)).Methods("GET")
 	router.HandleFunc("/getServerToken", s.handleGetServerToken()).Methods("GET")
+	router.HandleFunc("/servers", s.handleGetServers).Methods("GET")
+	router.HandleFunc("/updateServer", s.handleAddServer).Methods("POST")
 	router.HandleFunc("/updateAccount", s.handleUpdateAccount()).Methods("POST")
 
 	log.Println("json web server running on port: ", s.listenAddr)
@@ -72,8 +101,6 @@ func (s *APIServer) handleUpdateAccount() http.HandlerFunc {
 			permissionDenied(w)
 			return
 		}
-
-		fmt.Println("update account got passed body scanner")
 
 		tokenString := r.Header.Get("authorization")
 
@@ -112,6 +139,41 @@ func (s *APIServer) handleUpdateAccount() http.HandlerFunc {
 			return
 		}
 	}
+}
+
+var serverAPIPass = os.Getenv("API_PASSWORD")
+
+func (s *APIServer) handleAddServer(w http.ResponseWriter, r *http.Request) {
+
+	password := r.Header.Get("authorization")
+
+	if password != serverAPIPass {
+		WriteJson(w, http.StatusForbidden, ApiError{Error: "invalid api password!"})
+		return
+	}
+
+	var req ServerPayload
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Println("ERROR", r.Body)
+		return
+	}
+
+	s.cache.Set(req.Name, req, ttlcache.DefaultTTL)
+
+	w.WriteHeader(http.StatusOK)
+	return
+}
+
+func (s *APIServer) handleGetServers(w http.ResponseWriter, r *http.Request) {
+	servers := []ServerPayload{}
+
+	items := s.cache.Items()
+	for _, t := range items {
+		servers = append(servers, t.Value())
+	}
+
+	WriteJson(w, http.StatusOK, servers)
 }
 
 func (s *APIServer) handleGetServerToken() http.HandlerFunc {
